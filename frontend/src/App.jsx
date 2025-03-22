@@ -1,13 +1,20 @@
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import Layout from './components/Layout';
+import Home from './pages/Home';
+import Upload from './pages/Upload';
+import Dashboard from './pages/Dashboard';
 
 function App() {
   return (
-    <Layout>
-      <div className="text-center">
-        <h2 className="text-xl text-gray-700 mb-4">Welcome to MedAgentX 🩺</h2>
-        <p>This is your AI-powered healthcare assistant.</p>
-      </div>
-    </Layout>
+    <Router>
+      <Layout>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/upload" element={<Upload />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+        </Routes>
+      </Layout>
+    </Router>
   );
 }
 
