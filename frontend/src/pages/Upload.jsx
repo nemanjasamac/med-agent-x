@@ -99,15 +99,37 @@ function Upload() {
 				<div className="mt-8 p-6 bg-white rounded-xl shadow-md border border-gray-200">
 					<div className="flex items-center justify-between mb-2">
 						<h3 className="text-xl font-bold text-blue-700">🧠 Patient Summary</h3>
-						<button
-							onClick={() => {
-								navigator.clipboard.writeText(summary.text);
-								alert("Summary copied to clipboard!");
-							}}
-							className="bg-blue-600 text-white text-sm font-medium px-3 py-1 rounded hover:bg-blue-700 transition"
-						>
-							📋 Copy
-						</button>
+						<div className="flex gap-2">
+							<button
+								onClick={() => {
+									navigator.clipboard.writeText(summary.text);
+									alert("Summary copied to clipboard!");
+								}}
+								className="bg-blue-600 text-white text-sm font-medium px-3 py-1 rounded hover:bg-blue-700 transition"
+							>
+								📋 Copy
+							</button>
+							<button
+								onClick={() => {
+									const data = {
+										summary: summary.text,
+										keywords: summary.keywords,
+									};
+									const blob = new Blob([JSON.stringify(data, null, 2)], {
+										type: "application/json",
+									});
+									const url = URL.createObjectURL(blob);
+									const link = document.createElement("a");
+									link.href = url;
+									link.download = "medagentx-summary.json";
+									link.click();
+									URL.revokeObjectURL(url);
+								}}
+								className="bg-green-600 text-white text-sm font-medium px-3 py-1 rounded hover:bg-green-700 transition"
+							>
+								📥 Download JSON
+							</button>
+						</div>
 					</div>
 
 					<p className="text-gray-700 leading-relaxed whitespace-pre-line mb-4">{summary.text}</p>
