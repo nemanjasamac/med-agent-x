@@ -4,6 +4,9 @@ from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 import io
+import os
+from openai import OpenAI
+from dotenv import load_dotenv
 
 app = FastAPI()
 
@@ -14,6 +17,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+load_dotenv()
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 @app.get("/")
 def read_root():
@@ -41,7 +47,20 @@ async def generate_summary(
         except UnicodeDecodeError:
             return {"error": "Unsupported file type. Please upload a .txt of .pdf file."}    
 
-    summary = file_text[:200] + "..." if len(file_text) > 200 else file_text
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            temperature=0.4,
+            max_tokens=300,
+            messages=[
+                {"role": "system", "content": "You are a medial AI assistant that summarizes patient records into concise summaries for doctors."},
+                {"role": "user", "content": f"Please summarize the following patient notes: \n\n{file_text[:2000]}"}
+            ]
+        )
+        summary = response.choices[0].message.content
+    except Exception as e:
+        print("OpenAI API error:", e)
+        summary = "Error: Failed to generate summary from AI Agent"
 
     keywords_list = ["diabetes", "hypertension", "chest pain", "shortness of breath", "headache", "fever"]
     found_keywords = [
