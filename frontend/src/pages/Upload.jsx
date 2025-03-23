@@ -22,8 +22,8 @@ function Upload() {
 		formData.append("patient_id", patientId);
 		formData.append("notes", notes);
 
-		try{
-			const response = await axios.post("http://127.0.0.1:8000/generate-summary", formData,{
+		try {
+			const response = await axios.post("http://127.0.0.1:8000/generate-summary", formData, {
 				headers: {
 					"Content-Type": "multipart/form-data",
 				},
@@ -34,7 +34,7 @@ function Upload() {
 			});
 		} catch (err) {
 			console.error(err),
-			alert("Something went wrong!");
+				alert("Something went wrong!");
 		} finally {
 			setLoading(false);
 		}
@@ -96,18 +96,36 @@ function Upload() {
 			)}
 
 			{summary && (
-				<div className="mt-6 border-t pt-4">
-					<h3 className="text-lg font-bold mb-2 text-gray-800">AI Summary:</h3>
-					<p className="text-gray-700 mb-4">{summary.text}</p>
+				<div className="mt-8 p-6 bg-white rounded-xl shadow-md border border-gray-200">
+					<div className="flex items-center justify-between mb-2">
+						<h3 className="text-xl font-bold text-blue-700">🧠 Patient Summary</h3>
+						<button
+							onClick={() => {
+								navigator.clipboard.writeText(summary.text);
+								alert("Summary copied to clipboard!");
+							}}
+							className="bg-blue-600 text-white text-sm font-medium px-3 py-1 rounded hover:bg-blue-700 transition"
+						>
+							📋 Copy
+						</button>
+					</div>
 
-					<h4 className="font-semibold text-gray-800">Key Terms:</h4>
-					<ul className="list-disc list-inside text-gray-600">
+					<p className="text-gray-700 leading-relaxed whitespace-pre-line mb-4">{summary.text}</p>
+
+					<h4 className="text-lg font-semibold text-gray-800 mb-2">🧩 Extracted Medical Terms</h4>
+					<div className="flex flex-wrap gap-2">
 						{summary.keywords.map((kw, idx) => (
-							<li key={idx}>{kw}</li>
+							<span
+								key={idx}
+								className="inline-block bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full"
+							>
+								{kw}
+							</span>
 						))}
-					</ul>
+					</div>
 				</div>
 			)}
+
 
 		</div>
 	);
