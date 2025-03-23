@@ -28,8 +28,8 @@
 ## 📌 Roadmap
 
 - [x] Set up Git repository and base structure
-- [ ] Bootstrap FastAPI backend for agent APIs
-- [ ] Bootstrap React + Tailwind frontend
+- [x] Bootstrap FastAPI backend for agent APIs
+- [x] Bootstrap React + Tailwind frontend
 - [ ] Implement Patient Summary Agent
 - [ ] Implement Diagnosis & Scheduler Agents
 - [ ] Add RAG pipeline for contextual medical responses
