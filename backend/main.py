@@ -1,3 +1,4 @@
+import re
 from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
@@ -29,10 +30,20 @@ async def generate_summary(
         return {"error": "Unable to read file - must be a text file for now."}
     
     print(f"File contents: {decoded}")
-    fake_summary = decoded[:150] + "..." if len(decoded) > 150 else decoded
-    fake_keywords = ["Keyword A", "Keyword B", "Keyword C"]
+
+    summary = decoded[:200] + "..." if len(decoded) > 200 else decoded
+
+    keywords_list = ["diabetes", "hypertension", "chest pain", "shortness of breath", "headache", "fever"]
+    found_keywords = []
+
+    for kw in keywords_list:
+        if re.search(rf"\b{re.escape(kw)}\b", decoded, re.IGNORECASE):
+            found_keywords.append(kw.capitalize())
+
+    if not found_keywords:
+        found_keywords = ["No key medical terms found."]
 
     return {
-        "summary": fake_summary.strip(),
-        "keywords": fake_keywords,
+        "summary": summary.strip(),
+        "keywords": found_keywords,
     }
