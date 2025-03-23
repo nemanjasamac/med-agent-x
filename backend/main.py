@@ -22,11 +22,17 @@ async def generate_summary(
     patient_id: Optional[str] = Form(None),
     notes: Optional[str] = Form(None),
 ):
-    print(f"Received file: {file.filename}")
-    print(f"Patiend ID: {patient_id}")
-    print(f"Notes: {notes}")
+    contents = await file.read()
+    try:
+        decoded = contents.decode("utf-8")
+    except UnicodeDecodeError:
+        return {"error": "Unable to read file - must be a text file for now."}
+    
+    print(f"File contents: {decoded}")
+    fake_summary = decoded[:150] + "..." if len(decoded) > 150 else decoded
+    fake_keywords = ["Keyword A", "Keyword B", "Keyword C"]
 
     return {
-        "summary": "Patient is a 62-year-old with hypertension and diabetes, presenting chest pain.",
-        "keywords": ["Hypertension", "Diabetes", "Chest Pain"],
+        "summary": fake_summary.strip(),
+        "keywords": fake_keywords,
     }
