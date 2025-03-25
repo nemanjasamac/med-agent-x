@@ -1,15 +1,16 @@
 import re
 import fitz
-from fastapi import FastAPI, File, UploadFile, Form
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Optional
+from typing import Optional, List
 import os
 from openai import OpenAI
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 from db import init_db, engine
 from models import Summary
-from sqlmodel import Session
+from sqlmodel import Session, select
+from uuid import UUID
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -99,6 +100,7 @@ Return only the summary. Do not include introductions or explanations.
                 raw_text=file_text.strip(),
                 summary=summary.strip(),
                 keywords=found_keywords,
+                notes=notes,
             )
             print("📥 Saving summary to DB:", file.filename, found_keywords)
             session.add(summary_record)
@@ -111,3 +113,17 @@ Return only the summary. Do not include introductions or explanations.
         "summary": summary.strip(),
         "keywords": found_keywords,
     }
+
+@app.get("/summaries")
+def get_summaries():
+    with Session(engine) as session:
+        summaries = session.exec(select(Summary).order_by(Summary.created_at.desc())).all()
+        return summaries
+    
+@app.get("/summaries/{summary_id}")
+def get_summary_by_id(summary_id: UUID):
+    with Session(engine) as session:
+        summary = session.get(Summary, summary_id)
+        if not summary:
+            raise HTTPException(status_code=404, detail="Summary not found")
+        return summary
