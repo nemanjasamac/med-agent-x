@@ -7,6 +7,9 @@ function SummaryDetail() {
     const [summary, setSummary] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    const [diagnosis, setDiagnosis] = useState(null);
+    const [diagnosing, setDiagnosing] = useState(false);
+
     useEffect(() => {
         const fetchSummary = async () => {
             try {
@@ -48,6 +51,25 @@ ${summary.keywords.join(", ")}
         URL.revokeObjectURL(url);
     }
 
+    const handleDiagnosis = async () => {
+        setDiagnosing(true);
+        setDiagnosis(null);
+
+        try {
+            const res = await axios.post("http://localhost:8000/diagnose", {
+                summary: summary.summary,
+            });
+            setDiagnosis(res.data.diagnosis);
+        } catch (err) {
+            console.error("Diagnosis failed:", err);
+            setDiagnosis("Failed to generate diagnosis.");
+        } finally {
+            setDiagnosing(false);
+        }
+    };
+
+
+
     if (loading) return <div className="p-6">Loading summary...</div>;
 
     if (!summary) return <div className="p-6 text-red-600">Summary not found</div>;
@@ -60,6 +82,7 @@ ${summary.keywords.join(", ")}
             >
                 📥 Download Summary (.txt)
             </button>
+
 
             <h2 className="text-2xl font-bold text-blue-700 mb-4">{summary.file_name}</h2>
             <p className="text-sm text-gray-500 mb-4">Uploaded: {summary.created_at.slice(0, 10)}</p>
@@ -90,6 +113,22 @@ ${summary.keywords.join(", ")}
                     </span>
                 ))}
             </div>
+            <button
+                onClick={handleDiagnosis}
+                disabled={diagnosing || !summary}
+                className="mb-4 bg-purple-600 hover:bg-purple-700 text-white font-medium px-4 py-2 mt-6 rounded transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+                {diagnosing ? "Running Diagnosis..." : "Run Diagnosis"}
+            </button>
+
+            {diagnosis && (
+                <div className="mt-6">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-1">🧬 Diagnosis Suggestions:</h3>
+                    <p className="text-gray-700 whitespace-pre-line">{diagnosis}</p>
+                </div>
+            )}
+
+
         </div>
     );
 }

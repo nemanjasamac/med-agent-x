@@ -11,6 +11,10 @@ from db import init_db, engine
 from models import Summary
 from sqlmodel import Session, select
 from uuid import UUID
+from pydantic import BaseModel
+
+class DiagnosisRequest(BaseModel):
+    summary: str
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -72,7 +76,7 @@ Return only the summary. Do not include introductions or explanations.
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             temperature=0.4,
-            max_tokens=300,
+            max_tokens=1000,
             messages=[
                 {"role": "system", "content": "You are a helpful medical AI assistant that summarizes patient records concisely and professionally."},
                 {"role": "user", "content": prompt_text}
@@ -127,3 +131,32 @@ def get_summary_by_id(summary_id: UUID):
         if not summary:
             raise HTTPException(status_code=404, detail="Summary not found")
         return summary
+    
+@app.post("/diagnose")
+async def run_diagnosis(data: DiagnosisRequest):
+    prompt = f"""
+You are a clinical assistant. Based on the following patient summary, suggest potential diagnoses and next steps a doctor should consider:
+
+Patient Summary:
+{data.summary}
+
+Respond with a clear, clinical-style explanation.PermissionError
+"""
+    print("Diagnosis prompt sent to GPT:", prompt)
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            temperature=0.3,
+            max_tokens=1000,
+            messages=[
+                {"role": "system", "content": "You are a helpful clinical assistant trained to suggest differential diagnoses and next steps based on patient summaries."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        diagnosis = response.choices[0].message.content
+    except Exception as e:
+        print("Diagnosis agent error: ", e)
+        diagnosis = "Unable to generate diagnosis due to an error."
+
+    return {"diagnosis": diagnosis}
