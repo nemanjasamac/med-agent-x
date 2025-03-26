@@ -8,13 +8,18 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 from db import init_db, engine
-from models import Summary
+from models import Summary, Feedback
 from sqlmodel import Session, select
 from uuid import UUID
 from pydantic import BaseModel
 
 class DiagnosisRequest(BaseModel):
     summary: str
+
+class FeedbackRequest(BaseModel):
+    summary_id : str
+    helpful: bool
+    comment: str | None=None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -160,3 +165,15 @@ Respond with a clear, clinical-style explanation.PermissionError
         diagnosis = "Unable to generate diagnosis due to an error."
 
     return {"diagnosis": diagnosis}
+
+@app.post("/feedback")
+def save_feedback(data: FeedbackRequest):
+    with Session(engine) as session:
+        feedback = Feedback(
+            summary_id = UUID(data.summary_id),
+            helpful = data.helpful,
+            comment = data.comment
+        )
+        session.add(feedback)
+        session.commit()
+    return {"message": "Feedback saved successfully."}

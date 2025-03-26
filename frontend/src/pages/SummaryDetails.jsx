@@ -10,6 +10,9 @@ function SummaryDetail() {
     const [diagnosis, setDiagnosis] = useState(null);
     const [diagnosing, setDiagnosing] = useState(false);
 
+    const [helpful, setHelpful] = useState(null);
+    const [comment, setComment] = useState('');
+
     useEffect(() => {
         const fetchSummary = async () => {
             try {
@@ -69,6 +72,30 @@ ${summary.keywords.join(", ")}
     };
 
 
+    const handleSubmitFeedback = async () => {
+        try {
+            if (helpful === null) {
+                alert("Please select Yes or No.");
+                return;
+            }
+
+            const summaryId = summary?.id;
+
+            await axios.post("http://localhost:8000/feedback", {
+                summary_id: summaryId,
+                helpful,
+                comment,
+            });
+
+            alert("Feedback submitted. Thank you!");
+            setHelpful(null);
+            setComment("");
+        } catch (err) {
+            console.error("Error submitting feedback:", err);
+            alert("Something went wrong. Please try again.");
+        }
+    };
+
 
     if (loading) return <div className="p-6">Loading summary...</div>;
 
@@ -126,6 +153,17 @@ ${summary.keywords.join(", ")}
                     <h3 className="text-lg font-semibold text-gray-800 mb-1">🧬 Diagnosis Suggestions:</h3>
                     <p className="text-gray-700 whitespace-pre-line">{diagnosis}</p>
                 </div>
+            )}
+            {summary && diagnosis && (
+            <div className="mt-6">
+                <h2 className="text-md font-semibold mb-2">Was this diagnosis helpful?</h2>
+                <div className="flex items-center gap-2">
+                    <button onClick={() => setHelpful(true)} className={`px-3 py-1 rounded ${helpful === true ? 'bg-green-500 text-white' : 'bg-gray-200'}`}>👍 Yes</button>
+                    <button onClick={() => setHelpful(false)} className={`px-3 py-1 rounded ${helpful === false ? 'bg-red-500 text-white' : 'bg-gray-200'}`}>👎 No</button>
+                </div>
+                <textarea value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Optional feedback..." className="w-full mt-3 p-2 border rounder" />
+                <button className="mt-3 bg-blue-600 text-white px-4 py-2 rounded" onClick={handleSubmitFeedback}>Submit Feedback</button>
+            </div>
             )}
 
 

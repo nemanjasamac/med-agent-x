@@ -4,6 +4,7 @@ from sqlmodel import SQLModel, Field
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy import Column
 import uuid
+from uuid import UUID, uuid4
 
 class Summary(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -13,4 +14,11 @@ class Summary(SQLModel, table=True):
     summary: Optional[str] = None
     keywords: Optional[Any] = Field(default=None, sa_column=Column(JSONB))
     notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class Feedback(SQLModel, table=True):
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    summary_id: UUID
+    helpful: bool
+    comment: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
