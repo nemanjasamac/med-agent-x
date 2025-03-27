@@ -13,11 +13,22 @@ function SummaryDetail() {
     const [helpful, setHelpful] = useState(null);
     const [comment, setComment] = useState('');
 
+    const [submittedFeedback, setSubmittedFeedback] = useState(null);
+
     useEffect(() => {
         const fetchSummary = async () => {
             try {
                 const res = await axios.get(`http://localhost:8000/summaries/${id}`);
                 setSummary(res.data);
+                if (res.data?.id) {
+                    await axios.get(`http://127.0.0.1:8000/feedback/${res.data.id}`).then((response) => {
+                        if (response.data?.id) {
+                            setSubmittedFeedback(response.data);
+                        }
+                    }).catch((err) => {
+                        console.error("Error fetching feedback:", err);
+                    });
+                }
             } catch (err) {
                 console.error("Error fetching summary:", err);
             } finally {
@@ -155,16 +166,37 @@ ${summary.keywords.join(", ")}
                 </div>
             )}
             {summary && diagnosis && (
-            <div className="mt-6">
-                <h2 className="text-md font-semibold mb-2">Was this diagnosis helpful?</h2>
-                <div className="flex items-center gap-2">
-                    <button onClick={() => setHelpful(true)} className={`px-3 py-1 rounded ${helpful === true ? 'bg-green-500 text-white' : 'bg-gray-200'}`}>👍 Yes</button>
-                    <button onClick={() => setHelpful(false)} className={`px-3 py-1 rounded ${helpful === false ? 'bg-red-500 text-white' : 'bg-gray-200'}`}>👎 No</button>
+                <div className="mt-6">
+                    <h2 className="text-md font-semibold mb-2">Was this diagnosis helpful?</h2>
+                    <div className="flex items-center gap-2">
+                        <button onClick={() => setHelpful(true)} className={`px-3 py-1 rounded ${helpful === true ? 'bg-green-500 text-white' : 'bg-gray-200'}`}>👍 Yes</button>
+                        <button onClick={() => setHelpful(false)} className={`px-3 py-1 rounded ${helpful === false ? 'bg-red-500 text-white' : 'bg-gray-200'}`}>👎 No</button>
+                    </div>
+                    <textarea value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Optional feedback..." className="w-full mt-3 p-2 border rounder" />
+                    <button className="mt-3 bg-blue-600 text-white px-4 py-2 rounded" onClick={handleSubmitFeedback}>Submit Feedback</button>
                 </div>
-                <textarea value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Optional feedback..." className="w-full mt-3 p-2 border rounder" />
-                <button className="mt-3 bg-blue-600 text-white px-4 py-2 rounded" onClick={handleSubmitFeedback}>Submit Feedback</button>
-            </div>
             )}
+            {submittedFeedback && (
+                <div className="mt-6 p-4 border border-gray-200 bg-gray-50 rounded-lg shadow-sm">
+                    <h2 className="text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                        💬 Existing Feedback
+                    </h2>
+                    <p className="text-sm">
+                        <span className="font-medium text-gray-600">Was previous diagnosis helpful?</span>{" "}
+                        <span className={submittedFeedback.helpful ? "text-green-600" : "text-red-500"}>
+                            {submittedFeedback.helpful ? "Yes ✅" : "No ❌"}
+                        </span>
+                    </p>
+                    {submittedFeedback.comment && (
+                        <p className="mt-2 text-sm text-gray-700">
+                            <span className="font-medium text-gray-600">Comment:</span>{" "}
+                            {submittedFeedback.comment}
+                        </p>
+                    )}
+                </div>
+            )}
+
+
 
 
         </div>

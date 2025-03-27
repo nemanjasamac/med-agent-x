@@ -177,3 +177,18 @@ def save_feedback(data: FeedbackRequest):
         session.add(feedback)
         session.commit()
     return {"message": "Feedback saved successfully."}
+
+@app.get("/feedbacks")
+def get_feedbacks():
+    with Session(engine) as session:
+        feedbacks = session.exec(select(Feedback)).all()
+        return feedbacks
+
+@app.get("/feedback/{summary_id}")
+def get_feedback(summary_id: str):
+    with Session(engine) as session:
+        feedback = session.exec(select(Feedback).where(Feedback.summary_id == summary_id)).first()
+        if not feedback:
+            return {"message": "No feedback found for this summary."}
+        return feedback
+    
