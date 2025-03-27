@@ -1,9 +1,10 @@
 import re
 import fitz
-from fastapi import FastAPI, File, UploadFile, Form, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from typing import Optional, List
 import os
+import io
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+from typing import Optional
 from openai import OpenAI
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
@@ -12,6 +13,15 @@ from models import Summary, Feedback, Diagnosis
 from sqlmodel import Session, select
 from uuid import UUID
 from pydantic import BaseModel
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.lib.units import inch
+from textwrap import wrap
+from fastapi.responses import StreamingResponse
+from sqlalchemy import cast, func, text
+from sqlalchemy.dialects.postgresql import JSONB
+
+####### Models #######
 
 class DiagnosisRequest(BaseModel):
     summary: str
@@ -21,6 +31,8 @@ class FeedbackRequest(BaseModel):
     summary_id : str
     helpful: bool
     comment: str | None=None
+
+####### FastAPI #######
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -43,6 +55,8 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 @app.get("/")
 def read_root():
     return {"message": "MedAgentX backend is running!"}
+
+####### Summary API #######
 
 @app.post("/generate-summary")
 async def generate_summary(
@@ -125,10 +139,33 @@ Return only the summary. Do not include introductions or explanations.
     }
 
 @app.get("/summaries")
-def get_summaries():
+def get_summaries(
+    file_name: Optional[str] = Query(None),
+    patient_id: Optional[str] = Query(None),
+    keyword: Optional[str] = Query(None),
+):
     with Session(engine) as session:
-        summaries = session.exec(select(Summary).order_by(Summary.created_at.desc())).all()
-        return summaries
+        query = select(Summary)
+
+        if file_name:
+            query = query.where(func.lower(Summary.file_name).ilike(f"%{file_name.lower()}%"))
+
+        if patient_id:
+            query = query.where(func.lower(Summary.patient_id).ilike(f"%{patient_id.lower()}%"))
+
+        if keyword:
+            query = query.where(
+                text("""
+                    EXISTS (
+                        SELECT 1 FROM jsonb_array_elements_text(summary.keywords) AS kw
+                        WHERE LOWER(kw) LIKE :kw
+                    )
+                """)
+    ).params(kw=f"%{keyword.lower()}%")
+
+        results = session.exec(query).all()
+        return [s.dict() for s in results]
+
     
 @app.get("/summaries/{summary_id}")
 def get_summary_by_id(summary_id: UUID):
@@ -137,7 +174,59 @@ def get_summary_by_id(summary_id: UUID):
         if not summary:
             raise HTTPException(status_code=404, detail="Summary not found")
         return summary
-    
+
+def draw_wrapped_text(pdf, text, x, y, max_width):
+    lines = wrap(text, width=max_width)
+    for line in lines:
+        pdf.drawString(x, y, line)
+        y -= 14
+    return y
+
+@app.get("/export-pdf/{summary_id}")
+def export_pdf(summary_id: str):
+    with Session(engine) as session:
+        summary = session.get(Summary, UUID(summary_id))
+        if not summary:
+            raise HTTPException(status_code=404, detail="Summary not found")
+
+        diagnosis = session.exec(
+            select(Diagnosis).where(Diagnosis.summary_id == UUID(summary_id))
+        ).first()
+        if not diagnosis:
+            raise HTTPException(status_code=404, detail="Diagnosis not found")
+
+        buffer = io.BytesIO()
+        pdf = canvas.Canvas(buffer, pagesize=letter)
+        pdf.setFont("Helvetica", 12)
+
+        x, y = 50, 750
+        y -= 20
+        pdf.drawString(x, y, f"Patient ID: {summary.patient_id or '-'}")
+        y -= 20
+        pdf.drawString(x, y, f"File Name: {summary.file_name}")
+        y -= 30
+
+        pdf.drawString(x, y, "Summary:")
+        y -= 20
+        y = draw_wrapped_text(pdf, summary.summary or "", x + 10, y, 95)
+
+        y -= 20
+        pdf.drawString(x, y, "Diagnosis:")
+        y -= 20
+        y = draw_wrapped_text(pdf, diagnosis.result or "", x + 10, y, 95)
+
+        pdf.showPage()
+        pdf.save()
+        buffer.seek(0)
+
+        return StreamingResponse(
+            buffer,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename={summary.file_name.replace(' ', '_')}.pdf"}
+        )
+
+####### Diagnosis API #######
+
 @app.post("/diagnose")
 async def run_diagnosis(data: DiagnosisRequest):
     prompt = f"""
@@ -188,6 +277,7 @@ def get_diagnosis(summary_id: str):
             "created_at": diagnosis.created_at.isoformat(),
             }
 
+####### Feedback API #######
 
 @app.post("/feedback")
 def save_feedback(data: FeedbackRequest):

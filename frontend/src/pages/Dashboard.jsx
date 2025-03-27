@@ -5,24 +5,55 @@ import { Link } from 'react-router-dom';
 function Dashboard() {
 	const [summaries, setSummaries] = useState([]);
 	const [loading, setLoading] = useState(true);
+	const [searchField, setSearchField] = useState("keyword");
+	const [searchTerm, setSearchTerm] = useState("");
 
 	useEffect(() => {
 		const fetchSummaries = async () => {
 			try {
-				const res = await axios.get("http://127.0.0.1:8000/summaries");
-				setSummaries(res.data);
+				const params = {};
+				if (searchTerm.trim()) {
+					params[searchField] = searchTerm.trim();
+				}
+
+				const response = await axios.get('http://localhost:8000/summaries', {
+					params,
+				});
+				setSummaries(response.data);
 			} catch (error) {
-				console.error("Failed to fetch summaries", error)
+				console.error("Failed to fetch summaries", error);
 			} finally {
 				setLoading(false);
 			}
 		};
+
 		fetchSummaries();
-	}, []);
+	}, [searchTerm, searchField]);
+
+
 
 	return (
 		<div className='max-w-4xl mx-auto mt-10 p-4'>
 			<h1 className='text-2xl font-bold mb-6 text-blue-600'>Patient Summaries</h1>
+			<div className="flex gap-2 mb-4">
+				<select
+					value={searchField}
+					onChange={(e) => setSearchField(e.target.value)}
+					className="px-3 py-2 border rounded"
+				>
+					<option value="keyword">Keyword</option>
+					<option value="file_name">File Name</option>
+					<option value="patient_id">Patient ID</option>
+				</select>
+
+				<input
+					type="text"
+					placeholder={`Search by ${searchField.replace("_", " ")}`}
+					value={searchTerm}
+					onChange={(e) => setSearchTerm(e.target.value)}
+					className="flex-1 px-4 py-2 border rounded shadow-sm"
+				/>
+			</div>
 			{loading && <p>Loading...</p>}
 
 			{!loading && summaries.length === 0 && (

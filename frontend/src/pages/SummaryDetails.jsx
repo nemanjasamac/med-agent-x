@@ -133,7 +133,6 @@ ${summary.keywords.join(", ")}
                 📥 Download Summary (.txt)
             </button>
 
-
             <h2 className="text-2xl font-bold text-blue-700 mb-4">{summary.file_name}</h2>
             <p className="text-sm text-gray-500 mb-4">Uploaded: {summary.created_at.slice(0, 10)}</p>
 
@@ -179,6 +178,18 @@ ${summary.keywords.join(", ")}
                 </div>
             )}
 
+            {summary && (
+                <div className="mt-6">
+                    <a
+                        href={`http://localhost:8000/export-pdf/${summary.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded"
+                    >
+                        Download PDF Report
+                    </a>
+                </div>
+            )}
 
             <button
                 onClick={handleDiagnosis}
