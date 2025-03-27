@@ -8,13 +8,14 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 from db import init_db, engine
-from models import Summary, Feedback
+from models import Summary, Feedback, Diagnosis
 from sqlmodel import Session, select
 from uuid import UUID
 from pydantic import BaseModel
 
 class DiagnosisRequest(BaseModel):
     summary: str
+    summary_id: str
 
 class FeedbackRequest(BaseModel):
     summary_id : str
@@ -163,8 +164,30 @@ Respond with a clear, clinical-style explanation.PermissionError
     except Exception as e:
         print("Diagnosis agent error: ", e)
         diagnosis = "Unable to generate diagnosis due to an error."
+    
+    with Session(engine) as session:
+        new_diagnosis = Diagnosis(summary_id=UUID(data.summary_id), result=diagnosis)
+        session.add(new_diagnosis)
+        session.commit()
 
     return {"diagnosis": diagnosis}
+
+@app.get("/diagnosis/{summary_id}")
+def get_diagnosis(summary_id: str):
+    with Session(engine) as session:
+        diagnosis = session.exec(
+            select(Diagnosis)
+            .where(Diagnosis.summary_id == UUID(summary_id))
+            .order_by(Diagnosis.created_at.desc())
+        ).first()
+
+        if not diagnosis:
+            return{"diagnosis": None}
+        return {
+            "diagnosis": diagnosis.result,
+            "created_at": diagnosis.created_at.isoformat(),
+            }
+
 
 @app.post("/feedback")
 def save_feedback(data: FeedbackRequest):

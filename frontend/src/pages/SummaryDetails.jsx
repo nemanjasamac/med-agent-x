@@ -8,6 +8,7 @@ function SummaryDetail() {
     const [loading, setLoading] = useState(true);
 
     const [diagnosis, setDiagnosis] = useState(null);
+    const [diagnosisDate, setDiagnosisDate] = useState(null);
     const [diagnosing, setDiagnosing] = useState(false);
 
     const [helpful, setHelpful] = useState(null);
@@ -21,6 +22,17 @@ function SummaryDetail() {
                 const res = await axios.get(`http://localhost:8000/summaries/${id}`);
                 setSummary(res.data);
                 if (res.data?.id) {
+                    await axios.get(`http://localhost:8000/diagnosis/${res.data.id}`)
+                        .then((response) => {
+                            if (response.data?.diagnosis) {
+                                setDiagnosis(response.data.diagnosis);
+                                setDiagnosisDate(response.data.created_at);
+                            }
+                        })
+                        .catch((err) => {
+                            console.error("Error fetching diagnosis:", err);
+                        });
+
                     await axios.get(`http://127.0.0.1:8000/feedback/${res.data.id}`).then((response) => {
                         if (response.data?.id) {
                             setSubmittedFeedback(response.data);
@@ -38,7 +50,6 @@ function SummaryDetail() {
 
         fetchSummary();
     }, [id]);
-
     const handleDownload = () => {
         const fileContent = `
 File: ${summary.file_name}
@@ -72,6 +83,7 @@ ${summary.keywords.join(", ")}
         try {
             const res = await axios.post("http://localhost:8000/diagnose", {
                 summary: summary.summary,
+                summary_id: summary.id,
             });
             setDiagnosis(res.data.diagnosis);
         } catch (err) {
@@ -151,6 +163,23 @@ ${summary.keywords.join(", ")}
                     </span>
                 ))}
             </div>
+            {diagnosis && (
+                <div className="mt-6 bg-gray-50 p-4 rounded-xl shadow-sm border border-gray-200">
+                    <h3 className="text-xl font-semibold text-purple-700 mb-2">
+                        🩺 Diagnosis Suggestions
+                    </h3>
+                    {diagnosis.split('\n').map((line, index) => (
+                        <p key={index} className="text-sm text-gray-800 mb-1">
+                            {line}
+                        </p>
+                    ))}
+                    {diagnosisDate && (
+                        <p className="text-xs text-gray-500">Generated on: {new Date(diagnosisDate).toLocaleString()}</p>
+                    )}
+                </div>
+            )}
+
+
             <button
                 onClick={handleDiagnosis}
                 disabled={diagnosing || !summary}
@@ -159,12 +188,12 @@ ${summary.keywords.join(", ")}
                 {diagnosing ? "Running Diagnosis..." : "Run Diagnosis"}
             </button>
 
-            {diagnosis && (
+            {/* {diagnosis && (
                 <div className="mt-6">
                     <h3 className="text-lg font-semibold text-gray-800 mb-1">🧬 Diagnosis Suggestions:</h3>
                     <p className="text-gray-700 whitespace-pre-line">{diagnosis}</p>
                 </div>
-            )}
+            )} */}
             {summary && diagnosis && (
                 <div className="mt-6">
                     <h2 className="text-md font-semibold mb-2">Was this diagnosis helpful?</h2>

@@ -22,3 +22,9 @@ class Feedback(SQLModel, table=True):
     helpful: bool
     comment: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class Diagnosis(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    summary_id: uuid.UUID = Field(foreign_key="summary.id")
+    result: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
