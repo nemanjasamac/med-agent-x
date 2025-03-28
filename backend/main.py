@@ -143,6 +143,8 @@ def get_summaries(
     file_name: Optional[str] = Query(None),
     patient_id: Optional[str] = Query(None),
     keyword: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(10, ge=1, le=100),
 ):
     with Session(engine) as session:
         query = select(Summary)
@@ -163,9 +165,17 @@ def get_summaries(
                 """)
     ).params(kw=f"%{keyword.lower()}%")
 
-        results = session.exec(query).all()
-        return [s.dict() for s in results]
+        query = query.order_by(Summary.created_at.desc())
 
+        total_count = session.exec(select(func.count()).select_from(query.subquery())).one()
+        summaries = session.exec(query.offset((page - 1) * per_page).limit(per_page)).all()
+
+        return {
+            "total": total_count,
+            "page": page,
+            "per_page": per_page,
+            "summaries": [s.dict() for s in summaries]
+        }
     
 @app.get("/summaries/{summary_id}")
 def get_summary_by_id(summary_id: UUID):
