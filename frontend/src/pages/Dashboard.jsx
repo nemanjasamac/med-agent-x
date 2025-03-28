@@ -36,10 +36,11 @@ function Dashboard() {
 
 	const handleTagClick = (keyword) => {
 		if (activeTag === keyword) return;
+		setSearchField("keyword");
 		setActiveTag(keyword);
 		setSearchTerm(keyword);
 		setPage(1);
-		window.scrollTo({ top: 0, behavior: 'smooth' });
+		// window.scrollTo({ top: 0, behavior: 'smooth' });
 	};
 
 
@@ -88,39 +89,33 @@ function Dashboard() {
 			<h1 className='text-3xl font-bold mb-6 text-blue-600'>Patient Summaries</h1>
 			{stats &&
 				<DashboardStats stats={stats} />}
-				<RecentActivity summaries={recentSummaries} />
-			<div className="flex gap-2 mb-4">
-				<select
-					value={searchField}
-					onChange={(e) => setSearchField(e.target.value)}
-					className="px-3 py-2 border rounded"
-				>
-					<option value="keyword">Keyword</option>
-					<option value="file_name">File Name</option>
-					<option value="patient_id">Patient ID</option>
-				</select>
-
-
-				<input
-					type="text"
-					placeholder={`Search by ${searchField.replace("_", " ")}`}
-					value={searchTerm}
-					onChange={(e) => setSearchTerm(e.target.value)}
-					className="flex-1 px-4 py-2 border rounded shadow-sm"
-				/>
-				{activeTag && (
-					<button
-						onClick={() => {
-							setActiveTag("");
-							setSearchTerm("");
-							setPage(1);
-							window.scrollTo({ top: 0, behavior: 'smooth' });
-						}}
-						className="mt-2 px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300 transition"
-					>
-						Clear Filter: {activeTag}
-					</button>
-				)}
+			<RecentActivity summaries={recentSummaries} />
+			<div className='bg-white p-4 rounded-xl shadow mb-6'>
+				<h2 className='text-lg font-semibold mb-3 flex items-center gap-2'>
+					🔍 Search & Filter
+				</h2>
+				<div className='flex flex-col md:flex-row gap-2'>
+					<select value={searchField} onChange={(e) => setSearchField(e.target.value)} className='px-3 py-2 border rounded w-full md:w-auto'>
+						<option value="keyword">Keyword</option>
+						<option value="file_name">File Name</option>
+						<option value="patient_id">Patient ID</option>
+					</select>
+					<input type="text" placeholder={`Search by ${searchField.replace("_", " ")}`} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className='flex-1 px-4 py-2 border rounded shadow-sm' />
+					{activeTag && (
+						<button
+							onClick={() => {
+								setSearchField("keyword");
+								setActiveTag("");
+								setSearchTerm("");
+								setPage(1);
+								// window.scrollTo({ top: 0, behavior: 'smooth' });
+							}}
+							className="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300 transition"
+						>
+							Clear Filter: {activeTag}
+						</button>
+					)}
+				</div>
 			</div>
 
 			{loading && <p>Loading...</p>}
