@@ -126,13 +126,6 @@ ${summary.keywords.join(", ")}
 
     return (
         <div className="max-w-3xl mx-auto mt-10 p-6 bg-white rounded shadow">
-            <button
-                onClick={handleDownload}
-                className="mb-4 bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded transition"
-            >
-                📥 Download Summary (.txt)
-            </button>
-
             <h2 className="text-2xl font-bold text-blue-700 mb-4">{summary.file_name}</h2>
             <p className="text-sm text-gray-500 mb-4">Uploaded: {summary.created_at.slice(0, 10)}</p>
 
@@ -179,7 +172,7 @@ ${summary.keywords.join(", ")}
             )}
 
             {summary && (
-                <div className="mt-6">
+                <div className="mt-6 flex gap-4 ">
                     <a
                         href={`http://localhost:8000/export-pdf/${summary.id}`}
                         target="_blank"
@@ -188,7 +181,15 @@ ${summary.keywords.join(", ")}
                     >
                         Download PDF Report
                     </a>
+                    <a
+                        href={`http://localhost:8000/export-txt/${summary.id}`}
+                        target="_blank"
+                    >
+                        <button className="inline-block px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded">Download Summary (.txt)</button>
+                    </a>
+
                 </div>
+
             )}
 
             <button

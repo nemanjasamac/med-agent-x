@@ -2,7 +2,10 @@ import re
 import fitz
 import os
 import io
-from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Query
+from io import BytesIO
+from fpdf import FPDF
+from sqlalchemy.orm import Session
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 from openai import OpenAI
@@ -185,6 +188,8 @@ def get_summary_by_id(summary_id: UUID):
             raise HTTPException(status_code=404, detail="Summary not found")
         return summary
 
+####### PDF and TXT Export #######
+
 def draw_wrapped_text(pdf, text, x, y, max_width):
     lines = wrap(text, width=max_width)
     for line in lines:
@@ -202,38 +207,74 @@ def export_pdf(summary_id: str):
         diagnosis = session.exec(
             select(Diagnosis).where(Diagnosis.summary_id == UUID(summary_id))
         ).first()
-        if not diagnosis:
-            raise HTTPException(status_code=404, detail="Diagnosis not found")
 
-        buffer = io.BytesIO()
-        pdf = canvas.Canvas(buffer, pagesize=letter)
-        pdf.setFont("Helvetica", 12)
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_auto_page_break(auto=True, margin=15)
 
-        x, y = 50, 750
-        y -= 20
-        pdf.drawString(x, y, f"Patient ID: {summary.patient_id or '-'}")
-        y -= 20
-        pdf.drawString(x, y, f"File Name: {summary.file_name}")
-        y -= 30
+        pdf.set_font("Arial", "B", 16)
+        pdf.cell(0, 10, "MedAgentX - Patient Case Report", ln=True, align="C")
+        pdf.ln(10)
 
-        pdf.drawString(x, y, "Summary:")
-        y -= 20
-        y = draw_wrapped_text(pdf, summary.summary or "", x + 10, y, 95)
+        pdf.set_font("Arial", "B", 12)
+        pdf.cell(0, 8, f"Patient ID: {summary.patient_id}", ln=True)
+        pdf.cell(0, 8, f"File Name: {summary.file_name}", ln=True)
+        pdf.cell(0, 8, f"Date: {summary.created_at.strftime('%Y-%m-%d')}", ln=True)
+        pdf.ln(5)
 
-        y -= 20
-        pdf.drawString(x, y, "Diagnosis:")
-        y -= 20
-        y = draw_wrapped_text(pdf, diagnosis.result or "", x + 10, y, 95)
+        pdf.set_font("Arial", "B", 12)
+        pdf.cell(0, 8, "Keywords:", ln=True)
+        pdf.set_font("Arial", "", 12)
+        pdf.multi_cell(0, 8, ', '.join(summary.keywords) if summary.keywords else "N/A")
+        pdf.ln(5)
 
-        pdf.showPage()
-        pdf.save()
+        pdf.set_font("Arial", "B", 12)
+        pdf.cell(0, 8, "Summary:", ln=True)
+        pdf.set_font("Arial", "", 12)
+        pdf.multi_cell(0, 8, summary.summary if summary.summary else "N/A")
+        pdf.ln(5)
+
+        pdf.set_font("Arial", "B", 12)
+        pdf.cell(0, 8, "Diagnosis:", ln=True)
+        pdf.set_font("Arial", "", 12)
+        pdf.multi_cell(0, 8, diagnosis.result if diagnosis else "N/A")
+
+        pdf_output = pdf.output(dest='S').encode('latin1')
+        buffer = BytesIO(pdf_output)
         buffer.seek(0)
 
-        return StreamingResponse(
-            buffer,
-            media_type="application/pdf",
-            headers={"Content-Disposition": f"attachment; filename={summary.file_name.replace(' ', '_')}.pdf"}
-        )
+        return StreamingResponse(buffer, media_type="application/pdf", headers={
+            "Content-Disposition": f"attachment; filename={summary.file_name.replace('.txt','')}_report.pdf"
+        })
+    
+@app.get("/export-txt/{summary_id}")
+def export_txt(summary_id: str):
+    with Session(engine) as session:
+        summary = session.get(Summary, UUID(summary_id))
+        if not summary:
+            raise HTTPException(status_code=404, detail="Summary not found")
+
+        diagnosis = session.exec(select(Diagnosis).where(Diagnosis.summary_id == UUID(summary_id))).first()
+
+        content = f"""Patient ID: {summary.patient_id}
+File Name: {summary.file_name}
+Uploaded: {summary.created_at.strftime('%Y-%m-%d')}
+        
+Summary:
+{summary.summary}
+
+Notes:
+{summary.notes or 'N/A'}
+
+Diagnosis:
+{diagnosis.result if diagnosis else 'Diagnosis not available'}
+"""
+
+        return Response(content, media_type="text/plain", headers={
+            "Content-Disposition": f"attachment; filename={summary.file_name.replace('.txt', '')}_report.txt"
+        })
+
+
 
 ####### Diagnosis API #######
 
