@@ -10,6 +10,9 @@ function SummaryDetail() {
     const [diagnosis, setDiagnosis] = useState(null);
     const [diagnosisDate, setDiagnosisDate] = useState(null);
     const [diagnosing, setDiagnosing] = useState(false);
+    const [diagnosisHistory, setDiagnosisHistory] = useState([]);
+    const [activeDiagnosisIndex, setActiveDiagnosisIndex] = useState(null);
+
 
     const [helpful, setHelpful] = useState(null);
     const [comment, setComment] = useState('');
@@ -40,6 +43,11 @@ function SummaryDetail() {
                     }).catch((err) => {
                         console.error("Error fetching feedback:", err);
                     });
+                    await axios.get(`http://localhost:8000/diagnoses/${res.data.id}`).then((response) => {
+                        setDiagnosisHistory(response.data || []);
+                    }).catch((err) => {
+                        console.error("Error fetching diagnosis history:", err);
+                    });
                 }
             } catch (err) {
                 console.error("Error fetching summary:", err);
@@ -69,9 +77,6 @@ function SummaryDetail() {
             setDiagnosing(false);
         }
     };
-
-
-
 
     const handleSubmitFeedback = async () => {
         try {
@@ -151,6 +156,32 @@ function SummaryDetail() {
 
                 </div>
             )}
+            {diagnosisHistory.length > 0 && (
+                <div className="mt-6 bg-white p-4 rounded-xl shadow-sm border border-gray-300">
+                    <h3 className="text-lg font-semibold mb-2 text-gray-800">🕘 Diagnosis History</h3>
+                    <ul className="space-y-2">
+                        {diagnosisHistory.map((entry, index) => (
+                            <li key={entry.id} className="p-2 border rounded hover:bg-gray-50">
+                                <button
+                                    className="flex items-center justify-between w-full text-left"
+                                    onClick={() => setActiveDiagnosisIndex(activeDiagnosisIndex === index ? null : index)}
+                                >
+                                    <span>
+                                        <strong>Generated at:</strong> {new Date(entry.created_at).toLocaleString()}
+                                    </span>
+                                    <span>{activeDiagnosisIndex === index ? "▲" : "▼"}</span>
+                                </button>
+
+                                {activeDiagnosisIndex === index && (
+                                    <p className="mt-2 text-sm text-gray-800 whitespace-pre-line">{entry.result}</p>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
+
 
             {summary && (
                 <div className="mt-6 flex gap-4 ">

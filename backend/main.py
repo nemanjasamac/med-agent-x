@@ -2,6 +2,7 @@ import re
 import fitz
 import os
 import io
+from datetime import datetime, timezone
 from io import BytesIO
 from fpdf import FPDF
 from sqlalchemy.orm import Session
@@ -12,9 +13,9 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 from db import init_db, engine
-from models import Summary, Feedback, Diagnosis
+from models import Summary, Feedback, Diagnosis, DiagnosisHistory #MODELS
 from sqlmodel import Session, select
-from uuid import UUID
+from uuid import UUID, uuid4
 from pydantic import BaseModel
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
@@ -306,19 +307,54 @@ Respond with a clear, clinical-style explanation.
         diagnosis_text = "Unable to generate diagnosis due to an error."
 
     with Session(engine) as session:
-        diagnosis = session.exec(select(Diagnosis).where(Diagnosis.summary_id == UUID(data.summary_id))).first()
+        summary_id = UUID(data.summary_id)
+        summary = session.get(Summary, summary_id)
+
+        if not summary:
+            raise HTTPException(status_code=404, detail="Summary not found")
+
+        history = DiagnosisHistory(
+            summary_id=summary_id,
+            result=diagnosis_text
+        )
+        session.add(history)
+
+        diagnosis = session.exec(
+            select(Diagnosis).where(Diagnosis.summary_id == summary_id)
+        ).first()
+
         if diagnosis:
             diagnosis.result = diagnosis_text
-            diagnosis.created_at = func.now()
-            session.add(diagnosis)
+            diagnosis.created_at = datetime.now(timezone.utc)
         else:
-            diagnosis = Diagnosis(summary_id=UUID(data.summary_id), result=diagnosis_text)
+            diagnosis = Diagnosis(
+                id=uuid4(),
+                summary_id=summary_id,
+                result=diagnosis_text,
+                created_at=datetime.now(timezone.utc)
+            )
             session.add(diagnosis)
 
         session.commit()
 
     return {"diagnosis": diagnosis_text}
 
+@app.get("/diagnoses/{summary_id}")
+def get_diagnoses(summary_id: str):
+    with Session(engine) as session:
+        diagnoses = session.exec(
+            select(DiagnosisHistory)
+            .where(DiagnosisHistory.summary_id == UUID(summary_id))
+            .order_by(DiagnosisHistory.created_at.desc())
+        ).all()
+
+        return [
+            {
+                "id": str(d.id),
+                "result": d.result,
+                "created_at": d.created_at.isoformat(),
+            } for d in diagnoses
+        ]
 
 @app.get("/diagnosis/{summary_id}")
 def get_diagnosis(summary_id: str):

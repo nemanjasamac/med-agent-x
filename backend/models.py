@@ -28,3 +28,9 @@ class Diagnosis(SQLModel, table=True):
     summary_id: uuid.UUID = Field(foreign_key="summary.id")
     result: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class DiagnosisHistory(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    summary_id: uuid.UUID = Field(foreign_key="summary.id")
+    result: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
