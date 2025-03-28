@@ -286,7 +286,7 @@ You are a clinical assistant. Based on the following patient summary, suggest po
 Patient Summary:
 {data.summary}
 
-Respond with a clear, clinical-style explanation.PermissionError
+Respond with a clear, clinical-style explanation.
 """
     print("Diagnosis prompt sent to GPT:", prompt)
 
@@ -300,17 +300,25 @@ Respond with a clear, clinical-style explanation.PermissionError
                 {"role": "user", "content": prompt}
             ]
         )
-        diagnosis = response.choices[0].message.content
+        diagnosis_text = response.choices[0].message.content
     except Exception as e:
         print("Diagnosis agent error: ", e)
-        diagnosis = "Unable to generate diagnosis due to an error."
-    
+        diagnosis_text = "Unable to generate diagnosis due to an error."
+
     with Session(engine) as session:
-        new_diagnosis = Diagnosis(summary_id=UUID(data.summary_id), result=diagnosis)
-        session.add(new_diagnosis)
+        diagnosis = session.exec(select(Diagnosis).where(Diagnosis.summary_id == UUID(data.summary_id))).first()
+        if diagnosis:
+            diagnosis.result = diagnosis_text
+            diagnosis.created_at = func.now()
+            session.add(diagnosis)
+        else:
+            diagnosis = Diagnosis(summary_id=UUID(data.summary_id), result=diagnosis_text)
+            session.add(diagnosis)
+
         session.commit()
 
-    return {"diagnosis": diagnosis}
+    return {"diagnosis": diagnosis_text}
+
 
 @app.get("/diagnosis/{summary_id}")
 def get_diagnosis(summary_id: str):

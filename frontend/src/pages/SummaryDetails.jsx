@@ -50,31 +50,6 @@ function SummaryDetail() {
 
         fetchSummary();
     }, [id]);
-    const handleDownload = () => {
-        const fileContent = `
-File: ${summary.file_name}
-Date: ${summary.created_at.slice(0, 10)}
-
-${summary.patient_id ? `Patient ID: ${summary.patient_id}\n` : ""}
-${summary.notes ? `Uploader Notes: ${summary.notes}\n\n` : ""}
-
-🧠 Summary:
-${summary.summary}
-
-🧩 Keywords:
-${summary.keywords.join(", ")}
-  `.trim();
-
-        const blob = new Blob([fileContent], { type: "text/plain" });
-        const url = URL.createObjectURL(blob);
-
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `${summary.file_name}.txt`;
-        link.click();
-
-        URL.revokeObjectURL(url);
-    }
 
     const handleDiagnosis = async () => {
         setDiagnosing(true);
@@ -86,6 +61,7 @@ ${summary.keywords.join(", ")}
                 summary_id: summary.id,
             });
             setDiagnosis(res.data.diagnosis);
+            setDiagnosisDate(new Date());
         } catch (err) {
             console.error("Diagnosis failed:", err);
             setDiagnosis("Failed to generate diagnosis.");
@@ -93,6 +69,8 @@ ${summary.keywords.join(", ")}
             setDiagnosing(false);
         }
     };
+
+
 
 
     const handleSubmitFeedback = async () => {
@@ -166,8 +144,11 @@ ${summary.keywords.join(", ")}
                         </p>
                     ))}
                     {diagnosisDate && (
-                        <p className="text-xs text-gray-500">Generated on: {new Date(diagnosisDate).toLocaleString()}</p>
+                        <p className="text-sm text-gray-500 mt-1">
+                            Generated at: {new Date(diagnosisDate).toLocaleString()}
+                        </p>
                     )}
+
                 </div>
             )}
 
@@ -192,20 +173,15 @@ ${summary.keywords.join(", ")}
 
             )}
 
+            {/* Regenerate Diagnosis Button */}
             <button
                 onClick={handleDiagnosis}
-                disabled={diagnosing || !summary}
-                className="mb-4 bg-purple-600 hover:bg-purple-700 text-white font-medium px-4 py-2 mt-6 rounded transition disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={diagnosing}
+                className={`inline-block px-4 py-2 text-sm font-medium text-white rounded mt-3 ${diagnosing ? "bg-gray-400 cursor-not-allowed" : "bg-purple-600 hover:bg-purple-700"} text-white`}
             >
-                {diagnosing ? "Running Diagnosis..." : "Run Diagnosis"}
+                {diagnosis ? (diagnosing ? "Regenerating..." : "Regenerate Diagnosis") : (diagnosing ? "Generating Diagnosis..." : "Run Diagnosis")}
             </button>
 
-            {/* {diagnosis && (
-                <div className="mt-6">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-1">🧬 Diagnosis Suggestions:</h3>
-                    <p className="text-gray-700 whitespace-pre-line">{diagnosis}</p>
-                </div>
-            )} */}
             {summary && diagnosis && (
                 <div className="mt-6">
                     <h2 className="text-md font-semibold mb-2">Was this diagnosis helpful?</h2>
