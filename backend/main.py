@@ -400,3 +400,28 @@ def get_feedback(summary_id: str):
             return {"message": "No feedback found for this summary."}
         return feedback
     
+
+####### Dashboard #######
+
+@app.get('/dashboard-stats')
+def get_dashboard_stats():
+    with Session(engine) as session:
+        total_summaries = len(session.exec(select(Summary)).all())
+        total_diagnoses = len(session.exec(select(Diagnosis)).all())
+        total_feedbacks = len(session.exec(select(Feedback)).all())
+        # avg_feedback = session.exec(select(func.avg(Feedback.helpful))).first()
+
+        return {
+            "total_summaries": total_summaries,
+            "total_diagnoses": total_diagnoses,
+            "total_feedbacks": total_feedbacks,
+            # "average_feedback": round(avg_feedback[0], 2) if avg_feedback[0] else "N/A",
+        }
+    
+@app.get("/recent-summaries")
+def get_recent_summaries():
+    with Session(engine) as session:
+        summaries = session.exec(
+            select(Summary).order_by(Summary.created_at.desc()).limit(5)
+        ).all()
+        return summaries

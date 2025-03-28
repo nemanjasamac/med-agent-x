@@ -1,16 +1,38 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
+import DashboardStats from '../components/DashboardStats';
+import RecentActivity from '../components/RecentActivity';
 
 function Dashboard() {
 	const [summaries, setSummaries] = useState([]);
 	const [loading, setLoading] = useState(true);
+
 	const [searchField, setSearchField] = useState("keyword");
 	const [searchTerm, setSearchTerm] = useState("");
+
 	const [page, setPage] = useState(1);
 	const [perPage] = useState(10);;
 	const [total, setTotal] = useState(0);
+
 	const [activeTag, setActiveTag] = useState("");
+
+	const [stats, setStats] = useState(null);
+	const [recentSummaries, setRecentSummmaries] = useState([]);
+
+	useEffect(() => {
+		try {
+			axios.get('http://localhost:8000/dashboard-stats').then((res) => {
+				setStats(res.data)
+			})
+		} catch (error) {
+			console.error("Failed to fetch stats", error);
+		}
+	}, [])
+
+	useEffect(() => {
+		axios.get('http://localhost:8000/recent-summaries').then(res => setRecentSummmaries(res.data)).catch(err => console.error("Failed to fetch recent summaries", err))
+	}, [])
 
 	const handleTagClick = (keyword) => {
 		if (activeTag === keyword) return;
@@ -50,7 +72,7 @@ function Dashboard() {
 		};
 
 		fetchSummaries();
-	}, [searchTerm, searchField, total, page]);
+	}, [searchTerm, searchField, page]);
 
 	useEffect(() => {
 		window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -63,7 +85,10 @@ function Dashboard() {
 
 	return (
 		<div className='max-w-4xl mx-auto mt-10 p-4'>
-			<h1 className='text-2xl font-bold mb-6 text-blue-600'>Patient Summaries</h1>
+			<h1 className='text-3xl font-bold mb-6 text-blue-600'>Patient Summaries</h1>
+			{stats &&
+				<DashboardStats stats={stats} />}
+				<RecentActivity summaries={recentSummaries} />
 			<div className="flex gap-2 mb-4">
 				<select
 					value={searchField}
@@ -74,7 +99,7 @@ function Dashboard() {
 					<option value="file_name">File Name</option>
 					<option value="patient_id">Patient ID</option>
 				</select>
-				
+
 
 				<input
 					type="text"
@@ -116,7 +141,7 @@ function Dashboard() {
 								<span
 									key={index}
 									onClick={() => handleTagClick(keyword)}
-									className={`inline-block bg-blue-100 text-blue-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded cursor-pointer transition ${activeTag === keyword ? 'ring-2 ring-blue-400' : ''
+									className={`bg-blue-100 text-blue-800 text-sm px-3 py-1 rounded-full cursor-pointer ${activeTag === keyword ? 'ring-2 ring-blue-300' : ''
 										}`}
 								>
 									{keyword}
@@ -164,7 +189,7 @@ function Dashboard() {
 					</div>
 				)}
 			</div>
-		</div>
+		</div >
 	);
 }
 
