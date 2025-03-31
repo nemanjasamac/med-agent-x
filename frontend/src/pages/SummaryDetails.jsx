@@ -19,6 +19,9 @@ function SummaryDetail() {
 
     const [submittedFeedback, setSubmittedFeedback] = useState(null);
 
+    const [recommendations, setRecommendations] = useState("");
+    const [loadingRecommendations, setLoadingRecommendations] = useState(false);
+
     useEffect(() => {
         const fetchSummary = async () => {
             try {
@@ -102,6 +105,24 @@ function SummaryDetail() {
         }
     };
 
+    const handleGenerateRecommendations = async () => {
+        if (!summary || !diagnosis) return;
+    
+        setLoadingRecommendations(true);
+        try {
+            const response = await axios.post('http://localhost:8000/recommendations', {
+                summary_id: summary.id,
+                summary: summary.summary,
+                diagnosis: diagnosis
+            });
+            setRecommendations(response.data.recommendations);
+        } catch (error) {
+            console.error("Failed to generate recommendations:", error);
+        }
+        setLoadingRecommendations(false);
+    };
+    
+
 
     if (loading) return <div className="p-6">Loading summary...</div>;
 
@@ -156,6 +177,22 @@ function SummaryDetail() {
 
                 </div>
             )}
+            <div className="mt-4">
+                <button
+                    onClick={handleGenerateRecommendations}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                >
+                    {loadingRecommendations ? "Generating..." : "Generate Recommendations"}
+                </button>
+            </div>
+
+            {recommendations && (
+                <div className="border rounded-xl p-4 mt-2 bg-white">
+                <h2 className="font-semibold">Recommendations:</h2>
+                <pre className="whitespace-pre-wrap break-words max-h-64 overflow-y-auto mt-2 text-sm">{recommendations}</pre>
+            </div>
+            
+            )}
             {diagnosisHistory.length > 0 && (
                 <div className="mt-6 bg-white p-4 rounded-xl shadow-sm border border-gray-300">
                     <h3 className="text-lg font-semibold mb-2 text-gray-800">🕘 Diagnosis History</h3>
@@ -197,7 +234,7 @@ function SummaryDetail() {
                         href={`http://localhost:8000/export-txt/${summary.id}`}
                         target="_blank"
                     >
-                        <button className="inline-block px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded">Download Summary (.txt)</button>
+                        <button className="inline-block px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded">Download Report (.txt)</button>
                     </a>
 
                 </div>

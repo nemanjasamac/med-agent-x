@@ -6,14 +6,14 @@ from datetime import datetime, timezone
 from io import BytesIO
 from fpdf import FPDF
 from sqlalchemy.orm import Session
-from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Query, Response
+from fastapi import Body, FastAPI, File, UploadFile, Form, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 from openai import OpenAI
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 from db import init_db, engine
-from models import Summary, Feedback, Diagnosis, DiagnosisHistory #MODELS
+from models import Summary, Feedback, Diagnosis, DiagnosisHistory, RecommendationHistory #MODELS
 from sqlmodel import Session, select
 from uuid import UUID, uuid4
 from pydantic import BaseModel
@@ -425,3 +425,58 @@ def get_recent_summaries():
             select(Summary).order_by(Summary.created_at.desc()).limit(5)
         ).all()
         return summaries
+
+class RecommendationRequest(BaseModel):
+    summary_id: str
+    summary: str
+    diagnosis: str
+
+@app.post("/recommendations")
+def generate_recommendations(data: RecommendationRequest):
+    prompt = f"""
+    You are a helpful and professional medical assistant. Based on the following patient summary and diagnosis, suggest clear and concise medical recommendations for the doctor.
+
+    Patient Summary:
+    {data.summary}
+
+    Diagnosis:
+    {data.diagnosis}
+
+    Recommendations:
+    """
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=500,
+        temperature=0.3
+    )
+    recommendations_text = response.choices[0].message.content.strip()
+
+    with Session(engine) as session:
+        history = RecommendationHistory(
+            summary_id=UUID(data.summary_id),
+            result=recommendations_text,
+        )
+        session.add(history)
+        session.commit()
+
+    return {"recommendations": recommendations_text}
+
+@app.get("/recommendations/{summary_id}")
+def get_recommendations(summary_id: str):
+    with Session(engine) as session:
+        recommendations = session.exec(
+            select(RecommendationHistory)
+            .where(RecommendationHistory.summary_id == UUID(summary_id))
+            .order_by(RecommendationHistory.created_at.desc())
+        ).all()
+
+        return [
+            {
+                "id": str(r.id),
+                "result": r.result,
+                "created_at": r.created_at.isoformat(),
+            } for r in recommendations
+        ]
+    
+    
