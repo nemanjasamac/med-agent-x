@@ -5,6 +5,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy import Column, ForeignKey
 import uuid
 from uuid import UUID, uuid4
+from passlib.hash import bcrypt
 
 class Summary(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -48,3 +49,15 @@ class RecommendationHistory(SQLModel, table=True):
     summary_id: uuid.UUID = Field(sa_column=Column(ForeignKey("summary.id", ondelete="CASCADE")))
     result: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class Doctor(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True, nullable=False)
+    username: str = Field(unique=True, index=True, nullable=False)
+    email: str = Field(unique=True, index=True, nullable=False)
+    hashed_password: str = Field(nullable=False)
+
+    def set_password(self, password: str):
+        self.hashed_password = bcrypt.hash(password)
+
+    def verify_password(self, password: str) -> bool:
+        return bcrypt.verify(password, self.hashed_password)

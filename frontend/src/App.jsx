@@ -7,6 +7,8 @@ import SummaryDetail from './pages/SummaryDetails';
 import Patients from './pages/Patients';
 import PatientDetails from './pages/PatientDetails';
 import EditPatient from './pages/EditPatient';
+import Login from './pages/Login';
+import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
   return (
@@ -14,12 +16,13 @@ function App() {
       <Layout>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/upload" element={<Upload />} />
-          <Route path="/patients" element={<Patients />} />
-          <Route path="/patients/:id" element={<PatientDetails />} />
-          <Route path="/patients/:id/edit" element={<EditPatient />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/dashboard/:id" element={<SummaryDetail />} />
+          <Route path="/upload" element={<ProtectedRoute><Upload /></ProtectedRoute>} />
+          <Route path="/patients" element={<ProtectedRoute><Patients /></ProtectedRoute>} />
+          <Route path="/patients/:id" element={<ProtectedRoute><PatientDetails /></ProtectedRoute>} />
+          <Route path="/patients/:id/edit" element={<ProtectedRoute><EditPatient /></ProtectedRoute>} />
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/dashboard/:id" element={<ProtectedRoute><SummaryDetail /></ProtectedRoute>} />
+          <Route path="/login" element={<Login />} />
         </Routes>
       </Layout>
     </Router>

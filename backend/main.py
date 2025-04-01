@@ -2,18 +2,20 @@ import re
 import fitz
 import os
 import io
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from io import BytesIO
 from fpdf import FPDF
 from sqlalchemy.orm import Session
-from fastapi import Body, FastAPI, File, UploadFile, Form, HTTPException, Query, Response
+from fastapi import Body, Depends, FastAPI, File, UploadFile, Form, HTTPException, Query, Response, Header
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
 from openai import OpenAI
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 from db import init_db, engine
-from models import Summary, Feedback, Diagnosis, DiagnosisHistory, RecommendationHistory, Patient #MODELS
+from models import Summary, Feedback, Diagnosis, DiagnosisHistory, RecommendationHistory, Patient, Doctor #MODELS
 from sqlmodel import Session, select, delete
 from uuid import UUID, uuid4
 from pydantic import BaseModel
@@ -24,6 +26,7 @@ from textwrap import wrap
 from fastapi.responses import StreamingResponse
 from sqlalchemy import cast, func, text, String
 from sqlalchemy.dialects.postgresql import JSONB
+from auth_utils import create_access_token, get_current_doctor
 
 ####### Models #######
 
@@ -35,6 +38,20 @@ class FeedbackRequest(BaseModel):
     summary_id : str
     helpful: bool
     comment: str | None=None
+
+class RecommendationRequest(BaseModel):
+    summary_id: str
+    summary: str
+    diagnosis: str
+
+class DoctorRegisterRequest(BaseModel):
+    username: str
+    email: str
+    password: str
+
+class DoctorLoginRequest(BaseModel):
+    email: str
+    password: str
 
 ####### FastAPI #######
 
@@ -56,6 +73,11 @@ app.add_middleware(
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+def verify_token(token: str = Header(...)):
+    if not token.startswith("fake-token-for-"):
+        raise HTTPException(status_code=401, detail="Invalid token")
+    return token
+
 @app.get("/")
 def read_root():
     return {"message": "MedAgentX backend is running!"}
@@ -67,6 +89,7 @@ async def generate_summary(
     file: UploadFile = File(...),
     patient_id: Optional[str] = Form(...),
     notes: Optional[str] = Form(None),
+    doctor: Doctor = Depends(get_current_doctor)
 ):
     contents = await file.read()
     file_text = ""
@@ -149,6 +172,7 @@ def get_summaries(
     keyword: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     per_page: int = Query(10, ge=1, le=100),
+    doctor: Doctor = Depends(get_current_doctor)
 ):
     with Session(engine) as session:
         query = select(Summary)
@@ -182,7 +206,7 @@ def get_summaries(
         }
     
 @app.get("/summaries/{summary_id}")
-def get_summary_by_id(summary_id: UUID):
+def get_summary_by_id(summary_id: UUID, doctor: Doctor = Depends(get_current_doctor)):
     with Session(engine) as session:
         summary = session.get(Summary, summary_id)
         if not summary:
@@ -199,7 +223,7 @@ def draw_wrapped_text(pdf, text, x, y, max_width):
     return y
 
 @app.get("/export-pdf/{summary_id}")
-def export_pdf(summary_id: str):
+def export_pdf(summary_id: str, doctor: Doctor = Depends(get_current_doctor)):
     with Session(engine) as session:
         summary = session.get(Summary, UUID(summary_id))
         if not summary:
@@ -249,7 +273,7 @@ def export_pdf(summary_id: str):
         })
     
 @app.get("/export-txt/{summary_id}")
-def export_txt(summary_id: str):
+def export_txt(summary_id: str, doctor: Doctor = Depends(get_current_doctor)):
     with Session(engine) as session:
         summary = session.get(Summary, UUID(summary_id))
         if not summary:
@@ -275,12 +299,10 @@ Diagnosis:
             "Content-Disposition": f"attachment; filename={summary.file_name.replace('.txt', '')}_report.txt"
         })
 
-
-
 ####### Diagnosis API #######
 
 @app.post("/diagnose")
-async def run_diagnosis(data: DiagnosisRequest):
+async def run_diagnosis(data: DiagnosisRequest, doctor: Doctor = Depends(get_current_doctor)):
     prompt = f"""
 You are a clinical assistant. Based on the following patient summary, suggest potential diagnoses and next steps a doctor should consider:
 
@@ -340,7 +362,7 @@ Respond with a clear, clinical-style explanation.
     return {"diagnosis": diagnosis_text}
 
 @app.get("/diagnoses/{summary_id}")
-def get_diagnoses(summary_id: str):
+def get_diagnoses(summary_id: str, doctor: Doctor = Depends(get_current_doctor)):
     with Session(engine) as session:
         diagnoses = session.exec(
             select(DiagnosisHistory)
@@ -357,7 +379,7 @@ def get_diagnoses(summary_id: str):
         ]
 
 @app.get("/diagnosis/{summary_id}")
-def get_diagnosis(summary_id: str):
+def get_diagnosis(summary_id: str, doctor: Doctor = Depends(get_current_doctor)):
     with Session(engine) as session:
         diagnosis = session.exec(
             select(Diagnosis)
@@ -375,7 +397,7 @@ def get_diagnosis(summary_id: str):
 ####### Feedback API #######
 
 @app.post("/feedback")
-def save_feedback(data: FeedbackRequest):
+def save_feedback(data: FeedbackRequest, doctor: Doctor = Depends(get_current_doctor)):
     with Session(engine) as session:
         feedback = Feedback(
             summary_id = UUID(data.summary_id),
@@ -387,24 +409,23 @@ def save_feedback(data: FeedbackRequest):
     return {"message": "Feedback saved successfully."}
 
 @app.get("/feedbacks")
-def get_feedbacks():
+def get_feedbacks(doctor: Doctor = Depends(get_current_doctor)):
     with Session(engine) as session:
         feedbacks = session.exec(select(Feedback)).all()
         return feedbacks
 
 @app.get("/feedback/{summary_id}")
-def get_feedback(summary_id: str):
+def get_feedback(summary_id: str, doctor: Doctor = Depends(get_current_doctor)):
     with Session(engine) as session:
         feedback = session.exec(select(Feedback).where(Feedback.summary_id == summary_id)).first()
         if not feedback:
             return {"message": "No feedback found for this summary."}
         return feedback
     
-
 ####### Dashboard #######
 
 @app.get('/dashboard-stats')
-def get_dashboard_stats():
+def get_dashboard_stats(doctor: Doctor = Depends(get_current_doctor)):
     with Session(engine) as session:
         total_summaries = len(session.exec(select(Summary)).all())
         total_diagnoses = len(session.exec(select(Diagnosis)).all())
@@ -419,20 +440,15 @@ def get_dashboard_stats():
         }
     
 @app.get("/recent-summaries")
-def get_recent_summaries():
+def get_recent_summaries(doctor: Doctor = Depends(get_current_doctor)):
     with Session(engine) as session:
         summaries = session.exec(
             select(Summary).order_by(Summary.created_at.desc()).limit(5)
         ).all()
         return summaries
 
-class RecommendationRequest(BaseModel):
-    summary_id: str
-    summary: str
-    diagnosis: str
-
 @app.post("/recommendations")
-def generate_recommendations(data: RecommendationRequest):
+def generate_recommendations(data: RecommendationRequest, doctor: Doctor = Depends(get_current_doctor)):
     prompt = f"""
     You are a helpful and professional medical assistant. Based on the following patient summary and diagnosis, suggest clear and concise medical recommendations for the doctor.
 
@@ -463,7 +479,7 @@ def generate_recommendations(data: RecommendationRequest):
     return {"recommendations": recommendations_text}
 
 @app.get("/recommendations/{summary_id}")
-def get_recommendations(summary_id: str):
+def get_recommendations(summary_id: str, doctor: Doctor = Depends(get_current_doctor)):
     with Session(engine) as session:
         recommendations = session.exec(
             select(RecommendationHistory)
@@ -482,7 +498,7 @@ def get_recommendations(summary_id: str):
 ########## Patient API #######
 
 @app.post("/patients", response_model=Patient)
-def create_patient(patient: Patient):
+def create_patient(patient: Patient, doctor: Doctor = Depends(get_current_doctor)):
     with Session(engine) as session:
         session.add(patient)
         session.commit()
@@ -490,13 +506,13 @@ def create_patient(patient: Patient):
         return patient
 
 @app.get("/patients", response_model=List[Patient])
-def get_patients():
+def get_patients(doctor: Doctor = Depends(get_current_doctor)):
     with Session(engine) as session:
         patients = session.exec(select(Patient)).all()
         return patients
 
 @app.get("/patients/{patient_id}", response_model=Patient)
-def get_patient(patient_id: UUID):
+def get_patient(patient_id: UUID, doctor: Doctor = Depends(get_current_doctor)):
     with Session(engine) as session:
         patient = session.get(Patient, patient_id)
         if not patient:
@@ -504,7 +520,7 @@ def get_patient(patient_id: UUID):
         return patient
 
 @app.put("/patients/{patient_id}", response_model=Patient)
-def update_patient(patient_id: UUID, updated_patient: Patient):
+def update_patient(patient_id: UUID, updated_patient: Patient, doctor: Doctor = Depends(get_current_doctor)):
     with Session(engine) as session:
         patient = session.get(Patient, patient_id)
         if not patient:
@@ -520,7 +536,7 @@ def update_patient(patient_id: UUID, updated_patient: Patient):
         return patient
 
 @app.delete("/patients/{patient_id}", status_code=204)
-def delete_patient(patient_id: str):
+def delete_patient(patient_id: str, doctor: Doctor = Depends(get_current_doctor)):
     with Session(engine) as session:
         patient = session.get(Patient, patient_id)
         if not patient:
@@ -544,3 +560,32 @@ def delete_patient(patient_id: str):
 
     return {"message": "Patient and related summaries deleted successfully."}
 
+####### Doctor API #######
+
+@app.post("/register")
+def register_doctor(data: DoctorRegisterRequest):
+    with Session(engine) as session:
+        existing = session.exec(
+            select(Doctor).where((Doctor.username == data.username) | (Doctor.email == data.email))
+        ).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Username or email already registered.")
+
+        doctor = Doctor(username=data.username, email=data.email)
+        doctor.set_password(data.password)
+
+        session.add(doctor)
+        session.commit()
+        session.refresh(doctor)
+
+        return {"message": "Doctor registered successfully", "doctor_id": doctor.id}
+
+@app.post("/login")
+def login(data: DoctorLoginRequest):
+    with Session(engine) as session:
+        doctor = session.exec(select(Doctor).where(Doctor.email == data.email)).first()
+        if not doctor or not doctor.verify_password(data.password):
+            raise HTTPException(status_code=401, detail="Invalid email or password")
+
+        access_token = create_access_token(data={"sub": str(doctor.id)})
+        return {"access_token": access_token, "token_type": "bearer"}
