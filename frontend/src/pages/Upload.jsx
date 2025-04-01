@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-
+import AddPatientModal from "../components/AddPatientModal";
 
 function Upload() {
 	const [file, setFile] = useState(null);
@@ -11,6 +11,8 @@ function Upload() {
 
 	const [loading, setLoading] = useState(false);
 	const [summary, setSummary] = useState(null);
+
+	const [isModalOpen, setIsModalOpen] = useState(false);
 
 	useEffect(() => {
 		axios.get("http://localhost:8000/patients")
@@ -84,6 +86,23 @@ function Upload() {
 						</option>
 					))}
 				</select>
+				<button
+					type="button"
+					onClick={() => setIsModalOpen(true)}
+					className="text-sm text-blue-600 underline hover:text-blue-800"
+				>
+					+ Add Patient
+				</button>
+				<AddPatientModal
+					isOpen={isModalOpen}
+					onClose={() => setIsModalOpen(false)}
+					onPatientAdded={() => {
+						// Refresh patient list
+						axios.get("http://localhost:8000/patients")
+							.then((res) => setPatients(res.data))
+							.catch(err => console.error("Error fetching patients: ", err));
+					}}
+				/>
 
 				<div>
 					<label className="block font-medium text-gray-700 mb-1">Uploader Notes (optional)</label>
@@ -163,8 +182,6 @@ function Upload() {
 					</div>
 				</div>
 			)}
-
-
 		</div>
 	);
 }
