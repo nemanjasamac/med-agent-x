@@ -8,12 +8,20 @@ from uuid import UUID, uuid4
 
 class Summary(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    patient_id: Optional[str] = None
+    patient_id: Optional[UUID] = Field(default=None, foreign_key="patient.id")
     file_name: Optional[str] = None
     raw_text: Optional[str] = None
     summary: Optional[str] = None
     keywords: Optional[Any] = Field(default=None, sa_column=Column(JSONB))
     notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class Patient(SQLModel, table=True):
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    name: str
+    age: Optional[int] = None
+    gender: Optional[str] = None
+    contact: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class Feedback(SQLModel, table=True):
