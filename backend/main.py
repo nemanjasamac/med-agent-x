@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 from db import init_db, engine
 from models import Summary, Feedback, Diagnosis, DiagnosisHistory, RecommendationHistory, Patient #MODELS
-from sqlmodel import Session, select
+from sqlmodel import Session, select, delete
 from uuid import UUID, uuid4
 from pydantic import BaseModel
 from reportlab.lib.pagesizes import letter
@@ -22,7 +22,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.units import inch
 from textwrap import wrap
 from fastapi.responses import StreamingResponse
-from sqlalchemy import cast, func, text
+from sqlalchemy import cast, func, text, String
 from sqlalchemy.dialects.postgresql import JSONB
 
 ####### Models #######
@@ -157,7 +157,7 @@ def get_summaries(
             query = query.where(func.lower(Summary.file_name).ilike(f"%{file_name.lower()}%"))
 
         if patient_id:
-            query = query.where(func.lower(Summary.patient_id).ilike(f"%{patient_id.lower()}%"))
+            query = query.where(cast(Summary.patient_id, String).ilike(f"%{patient_id.lower()}%"))
 
         if keyword:
             query = query.where(
@@ -526,9 +526,21 @@ def delete_patient(patient_id: str):
         if not patient:
             raise HTTPException(status_code=404, detail="Patient not found")
 
+        summaries = session.exec(select(Summary).where(Summary.patient_id == patient_id)).all()
+        for summary in summaries:
+            session.exec(
+                delete(Diagnosis).where(Diagnosis.summary_id == summary.id)
+            )
+            session.exec(
+                delete(DiagnosisHistory).where(DiagnosisHistory.summary_id == summary.id)
+            )
+            session.exec(
+                delete(RecommendationHistory).where(RecommendationHistory.summary_id == summary.id)
+            )
+            session.delete(summary)
+
         session.delete(patient)
         session.commit()
 
     return {"message": "Patient and related summaries deleted successfully."}
 
-    

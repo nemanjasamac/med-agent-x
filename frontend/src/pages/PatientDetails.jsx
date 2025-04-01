@@ -34,7 +34,7 @@ export default function PatientDetails() {
             } catch (error) {
                 console.error("Error fetching patient data:", error);
             }
-            
+
         };
         fetchPatientData();
     }, [id]);
@@ -63,20 +63,28 @@ export default function PatientDetails() {
             </div>
 
 
-            <h2 className="text-xl font-semibold mt-6">Summaries</h2>
-            <div className="space-y-4 mt-2">
-                {Array.isArray(summaries) && summaries.length > 0 ? (
-                    summaries.map(summary => (
-                        <div key={summary.id} className="p-4 rounded border shadow-sm">
-                            <p><strong>Filename:</strong> {summary.file_name}</p>
-                            <p><strong>Summary:</strong> {summary.summary?.substring(0, 200) + "..." || "No summary"}</p>
-                            <Link to={`/dashboard/${summary.id}`} className="text-blue-500 hover:underline">View Full</Link>
+            <h2 className="text-xl font-semibold mt-6 mb-4">Summaries</h2>
+            {Array.isArray(summaries) && summaries.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {summaries.map(summary => (
+                        <div key={summary.id} className="bg-white border rounded-lg shadow hover:shadow-md transition p-4 flex flex-col justify-between">
+                            <div>
+                                <h3 className="font-semibold text-lg mb-1">{summary.file_name}</h3>
+                                <p className="text-sm text-gray-600 mb-2">{summary.summary?.substring(0, 150) + "..." || "No summary available."}</p>
+                                <p className="text-xs text-gray-400">
+                                    Generated on: {new Date(summary.created_at).toLocaleDateString() || "Unknown"}
+                                </p>
+                            </div>
+                            <Link to={`/dashboard/${summary.id}`} className="mt-3 inline-block bg-blue-500 text-white px-3 py-1 rounded text-center hover:bg-blue-600">
+                                View Full Summary
+                            </Link>
                         </div>
-                    ))
-                ) : (
-                    <p>No summaries available for this patient.</p>
-                )}
-            </div>
+                    ))}
+                </div>
+            ) : (
+                <p>No summaries available for this patient.</p>
+            )}
+
         </div>
     );
 }
