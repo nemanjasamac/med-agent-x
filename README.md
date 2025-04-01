@@ -31,7 +31,7 @@
 - [x] Bootstrap FastAPI backend for agent APIs
 - [x] Bootstrap React + Tailwind frontend
 - [x] Implement Patient Summary Agent
-- [ ] Implement Diagnosis & Scheduler Agents
+- [x] Implement Diagnosis & Scheduler Agents
 - [ ] Add RAG pipeline for contextual medical responses
 - [ ] Create example patient case flows for demo
 - [ ] Deploy fullstack project (Render / Vercel / Docker Compose)
