@@ -1,14 +1,22 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
 
 
 function Upload() {
 	const [file, setFile] = useState(null);
-	const [patientId, setPatientId] = useState("");
 	const [notes, setNotes] = useState("");
+
+	const [patients, setPatients] = useState([]);
+	const [selectedPatient, setSelectedPatient] = useState("");
 
 	const [loading, setLoading] = useState(false);
 	const [summary, setSummary] = useState(null);
+
+	useEffect(() => {
+		axios.get("http://localhost:8000/patients")
+			.then((res) => setPatients(res.data))
+			.catch(err => console.error("Error fetching patients: ", err));
+	}, [])
 
 	const handleSubmit = async (e) => {
 		e.preventDefault();
@@ -17,9 +25,14 @@ function Upload() {
 		setLoading(true);
 		setSummary(null);
 
+		if (!selectedPatient) {
+			alert("Please select a patient before uploading.");
+			return;
+		}
+
 		const formData = new FormData();
 		formData.append("file", file);
-		formData.append("patient_id", patientId);
+		formData.append("patient_id", selectedPatient);
 		formData.append("notes", notes);
 
 		try {
@@ -58,16 +71,19 @@ function Upload() {
 					/>
 				</div>
 
-				<div>
-					<label className="block font-medium text-gray-700 mb-1">Patient ID (optional)</label>
-					<input
-						type="text"
-						value={patientId}
-						onChange={(e) => setPatientId(e.target.value)}
-						placeholder="e.g. JohnD123"
-						className="block w-full border border-gray-300 rounded p-2"
-					/>
-				</div>
+				<label className="block mb-2 font-semibold">Select Patient:</label>
+				<select
+					value={selectedPatient}
+					onChange={(e) => setSelectedPatient(e.target.value)}
+					className="border rounded px-2 py-1 w-full mb-4"
+				>
+					<option value="">-- Select a patient --</option>
+					{patients.map((patient) => (
+						<option key={patient.id} value={patient.id}>
+							{patient.name}
+						</option>
+					))}
+				</select>
 
 				<div>
 					<label className="block font-medium text-gray-700 mb-1">Uploader Notes (optional)</label>

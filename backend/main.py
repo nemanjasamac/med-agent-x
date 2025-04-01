@@ -8,12 +8,12 @@ from fpdf import FPDF
 from sqlalchemy.orm import Session
 from fastapi import Body, FastAPI, File, UploadFile, Form, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Optional
+from typing import List, Optional
 from openai import OpenAI
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 from db import init_db, engine
-from models import Summary, Feedback, Diagnosis, DiagnosisHistory, RecommendationHistory #MODELS
+from models import Summary, Feedback, Diagnosis, DiagnosisHistory, RecommendationHistory, Patient #MODELS
 from sqlmodel import Session, select
 from uuid import UUID, uuid4
 from pydantic import BaseModel
@@ -65,7 +65,7 @@ def read_root():
 @app.post("/generate-summary")
 async def generate_summary(
     file: UploadFile = File(...),
-    patient_id: Optional[str] = Form(None),
+    patient_id: Optional[str] = Form(...),
     notes: Optional[str] = Form(None),
 ):
     contents = await file.read()
@@ -479,4 +479,28 @@ def get_recommendations(summary_id: str):
             } for r in recommendations
         ]
     
+########## Patient API #######
+
+@app.post("/patients", response_model=Patient)
+def create_patient(patient: Patient):
+    with Session(engine) as session:
+        session.add(patient)
+        session.commit()
+        session.refresh(patient)
+        return patient
+
+@app.get("/patients", response_model=List[Patient])
+def get_patients():
+    with Session(engine) as session:
+        patients = session.exec(select(Patient)).all()
+        return patients
+
+@app.get("/patients/{patient_id}", response_model=Patient)
+def get_patient(patient_id: UUID):
+    with Session(engine) as session:
+        patient = session.get(Patient, patient_id)
+        if not patient:
+            raise HTTPException(status_code=404, detail="Patient not found")
+        return patient
+
     
