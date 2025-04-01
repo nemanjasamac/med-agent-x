@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
+import DiagnosisHistory from "@/components/DiagnosisHistory";
+import RecommendationHistory from "@/components/RecommendationHistory";
 
 function SummaryDetail() {
     const { id } = useParams();
@@ -21,6 +23,9 @@ function SummaryDetail() {
 
     const [recommendations, setRecommendations] = useState("");
     const [loadingRecommendations, setLoadingRecommendations] = useState(false);
+    const [recommendationHistory, setRecommendationHistory] = useState([]);
+    const [activeRecommendationIndex, setActiveRecommendationIndex] = useState(null);
+
 
     useEffect(() => {
         const fetchSummary = async () => {
@@ -50,6 +55,9 @@ function SummaryDetail() {
                         setDiagnosisHistory(response.data || []);
                     }).catch((err) => {
                         console.error("Error fetching diagnosis history:", err);
+                    });
+                    await axios.get(`http://localhost:8000/recommendations/${id}`).then((res) => setRecommendationHistory(res.data)).catch((err) => {
+                        console.error("Error fetching recommendations:", err);
                     });
                 }
             } catch (err) {
@@ -107,7 +115,7 @@ function SummaryDetail() {
 
     const handleGenerateRecommendations = async () => {
         if (!summary || !diagnosis) return;
-    
+
         setLoadingRecommendations(true);
         try {
             const response = await axios.post('http://localhost:8000/recommendations', {
@@ -116,12 +124,17 @@ function SummaryDetail() {
                 diagnosis: diagnosis
             });
             setRecommendations(response.data.recommendations);
+
+            const historyRes = await axios.get(`http://localhost:8000/recommendations/${summary.id}`);
+            setRecommendationHistory(historyRes.data || []);
+
         } catch (error) {
             console.error("Failed to generate recommendations:", error);
         }
         setLoadingRecommendations(false);
     };
-    
+
+
 
 
     if (loading) return <div className="p-6">Loading summary...</div>;
@@ -182,42 +195,28 @@ function SummaryDetail() {
                     onClick={handleGenerateRecommendations}
                     className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
                 >
-                    {loadingRecommendations ? "Generating..." : "Generate Recommendations"}
+                    {loadingRecommendations
+                        ? "Generating..."
+                        : recommendationHistory.length > 0
+                            ? "Regenerate Recommendations"
+                            : "Generate Recommendations"
+                    }
                 </button>
+
             </div>
+
 
             {recommendations && (
                 <div className="border rounded-xl p-4 mt-2 bg-white">
-                <h2 className="font-semibold">Recommendations:</h2>
-                <pre className="whitespace-pre-wrap break-words max-h-64 overflow-y-auto mt-2 text-sm">{recommendations}</pre>
-            </div>
-            
-            )}
-            {diagnosisHistory.length > 0 && (
-                <div className="mt-6 bg-white p-4 rounded-xl shadow-sm border border-gray-300">
-                    <h3 className="text-lg font-semibold mb-2 text-gray-800">🕘 Diagnosis History</h3>
-                    <ul className="space-y-2">
-                        {diagnosisHistory.map((entry, index) => (
-                            <li key={entry.id} className="p-2 border rounded hover:bg-gray-50">
-                                <button
-                                    className="flex items-center justify-between w-full text-left"
-                                    onClick={() => setActiveDiagnosisIndex(activeDiagnosisIndex === index ? null : index)}
-                                >
-                                    <span>
-                                        <strong>Generated at:</strong> {new Date(entry.created_at).toLocaleString()}
-                                    </span>
-                                    <span>{activeDiagnosisIndex === index ? "▲" : "▼"}</span>
-                                </button>
-
-                                {activeDiagnosisIndex === index && (
-                                    <p className="mt-2 text-sm text-gray-800 whitespace-pre-line">{entry.result}</p>
-                                )}
-                            </li>
-                        ))}
-                    </ul>
+                    <h2 className="font-semibold">Recommendations:</h2>
+                    <pre className="whitespace-pre-wrap break-words max-h-64 overflow-y-auto mt-2 text-sm">{recommendations}</pre>
                 </div>
-            )}
 
+            )}
+            <DiagnosisHistory diagnosisHistory={diagnosisHistory} />
+
+            {/* Recommendation History */}
+            <RecommendationHistory recommendationHistory={recommendationHistory} />
 
 
             {summary && (
@@ -249,6 +248,7 @@ function SummaryDetail() {
             >
                 {diagnosis ? (diagnosing ? "Regenerating..." : "Regenerate Diagnosis") : (diagnosing ? "Generating Diagnosis..." : "Run Diagnosis")}
             </button>
+
 
             {summary && diagnosis && (
                 <div className="mt-6">
