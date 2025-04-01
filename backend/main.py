@@ -503,4 +503,32 @@ def get_patient(patient_id: UUID):
             raise HTTPException(status_code=404, detail="Patient not found")
         return patient
 
+@app.put("/patients/{patient_id}", response_model=Patient)
+def update_patient(patient_id: UUID, updated_patient: Patient):
+    with Session(engine) as session:
+        patient = session.get(Patient, patient_id)
+        if not patient:
+            raise HTTPException(status_code=404, detail="Patient not found")
+
+        patient.name = updated_patient.name
+        patient.gender = updated_patient.gender
+        patient.age = updated_patient.age
+        patient.contact = updated_patient.contact
+
+        session.commit()
+        session.refresh(patient)
+        return patient
+
+@app.delete("/patients/{patient_id}", status_code=204)
+def delete_patient(patient_id: str):
+    with Session(engine) as session:
+        patient = session.get(Patient, patient_id)
+        if not patient:
+            raise HTTPException(status_code=404, detail="Patient not found")
+
+        session.delete(patient)
+        session.commit()
+
+    return {"message": "Patient and related summaries deleted successfully."}
+
     

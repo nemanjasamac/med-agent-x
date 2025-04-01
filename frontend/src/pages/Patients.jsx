@@ -19,7 +19,7 @@ export default function Patients(){
                         <p><strong>Age:</strong> {patient.age || "N/A"}</p>
                         <p><strong>Gender:</strong> {patient.gender || "N/A"}</p>
                         <p><strong>Contact:</strong> {patient.contact || "N/A"}</p>
-                        <Link to={`/patients/${patient.id}`} className="text-blue-500 hover:underline">View summaries</Link>
+                        <Link to={`/patients/${patient.id}`} className="text-blue-500 hover:underline">View patient details</Link>
                     </div>
                 ))}
             </div>
