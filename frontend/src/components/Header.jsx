@@ -42,7 +42,8 @@ function Header() {
                         <Link to="/dashboard" className="text-gray-700 hover:text-blue-600 transition">Dashboard</Link>
                         <Link to="/patients" className="text-gray-700 hover:text-blue-600 transition">Patients</Link>
                         <Link to="/upload" className="text-gray-700 hover:text-blue-600 transition">Upload</Link>
-                        <button onClick={handleLogout} className="underline">Logout</button>
+                        <Link to="/account" className="hover:underline hover:text-blue-600">My Account</Link>
+                        <button onClick={handleLogout} className="hover:underline hover:text-blue-600">Logout</button>
                     </>
                 ) : (
                     <>

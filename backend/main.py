@@ -591,3 +591,12 @@ def register(data: DoctorRegisterRequest):
 
         access_token = create_access_token(data={"sub": str(doctor.id)})
         return {"access_token": access_token, "token_type": "bearer"}
+    
+
+@app.get("/account")
+def get_account(doctor: Doctor = Depends(get_current_doctor)):
+    return {
+        "id": str(doctor.id),
+        "username": doctor.username,
+        "email": doctor.email,
+    }

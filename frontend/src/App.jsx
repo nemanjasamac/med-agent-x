@@ -10,6 +10,7 @@ import EditPatient from './pages/EditPatient';
 import Login from './pages/Login';
 import ProtectedRoute from "./components/ProtectedRoute";
 import Register from './pages/Register';
+import Account from './pages/Account';
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
           <Route path="/dashboard/:id" element={<ProtectedRoute><SummaryDetail /></ProtectedRoute>} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/account" element={<ProtectedRoute><Account /></ProtectedRoute>} />
         </Routes>
       </Layout>
     </Router>
