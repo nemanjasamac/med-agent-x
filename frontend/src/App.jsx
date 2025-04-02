@@ -9,6 +9,7 @@ import PatientDetails from './pages/PatientDetails';
 import EditPatient from './pages/EditPatient';
 import Login from './pages/Login';
 import ProtectedRoute from "./components/ProtectedRoute";
+import Register from './pages/Register';
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/dashboard/:id" element={<ProtectedRoute><SummaryDetail /></ProtectedRoute>} />
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
         </Routes>
       </Layout>
     </Router>

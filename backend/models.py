@@ -61,3 +61,7 @@ class Doctor(SQLModel, table=True):
 
     def verify_password(self, password: str) -> bool:
         return bcrypt.verify(password, self.hashed_password)
+    
+    @staticmethod
+    def hash_password(password: str) -> str:
+        return bcrypt.hash(password)

@@ -562,30 +562,32 @@ def delete_patient(patient_id: str, doctor: Doctor = Depends(get_current_doctor)
 
 ####### Doctor API #######
 
-@app.post("/register")
-def register_doctor(data: DoctorRegisterRequest):
-    with Session(engine) as session:
-        existing = session.exec(
-            select(Doctor).where((Doctor.username == data.username) | (Doctor.email == data.email))
-        ).first()
-        if existing:
-            raise HTTPException(status_code=400, detail="Username or email already registered.")
-
-        doctor = Doctor(username=data.username, email=data.email)
-        doctor.set_password(data.password)
-
-        session.add(doctor)
-        session.commit()
-        session.refresh(doctor)
-
-        return {"message": "Doctor registered successfully", "doctor_id": doctor.id}
-
 @app.post("/login")
 def login(data: DoctorLoginRequest):
     with Session(engine) as session:
         doctor = session.exec(select(Doctor).where(Doctor.email == data.email)).first()
         if not doctor or not doctor.verify_password(data.password):
             raise HTTPException(status_code=401, detail="Invalid email or password")
+
+        access_token = create_access_token(data={"sub": str(doctor.id)})
+        return {"access_token": access_token, "token_type": "bearer"}
+
+@app.post("/register")
+def register(data: DoctorRegisterRequest):
+    with Session(engine) as session:
+        existing_doctor = session.exec(select(Doctor).where(Doctor.email == data.email)).first()
+        if existing_doctor:
+            raise HTTPException(status_code=400, detail="A doctor with this email already exists")
+
+        hashed_password = Doctor.hash_password(data.password)
+        doctor = Doctor(
+            username=data.username,
+            email=data.email,
+            hashed_password=hashed_password
+        )
+        session.add(doctor)
+        session.commit()
+        session.refresh(doctor)
 
         access_token = create_access_token(data={"sub": str(doctor.id)})
         return {"access_token": access_token, "token_type": "bearer"}
