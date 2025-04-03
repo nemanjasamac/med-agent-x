@@ -1,4 +1,4 @@
-from typing import Optional, Any
+from typing import Annotated, Optional, Any
 from datetime import datetime, timezone
 from sqlmodel import SQLModel, Field
 from sqlalchemy.dialects.postgresql import JSONB
@@ -6,6 +6,7 @@ from sqlalchemy import Column, ForeignKey
 import uuid
 from uuid import UUID, uuid4
 from passlib.hash import bcrypt
+from pydantic import BaseModel, EmailStr, constr
 
 class Summary(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -65,3 +66,8 @@ class Doctor(SQLModel, table=True):
     @staticmethod
     def hash_password(password: str) -> str:
         return bcrypt.hash(password)
+    
+class DoctorUpdate(BaseModel):
+    username: Optional[Annotated[str, constr(strip_whitespace=True, min_length=3, max_length=50)]] = None
+    email: Optional[EmailStr] = None
+    password: Optional[Annotated[str, constr(min_length=6)]] = None

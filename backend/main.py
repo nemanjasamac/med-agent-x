@@ -15,7 +15,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 from db import init_db, engine
-from models import Summary, Feedback, Diagnosis, DiagnosisHistory, RecommendationHistory, Patient, Doctor #MODELS
+from models import Summary, Feedback, Diagnosis, DiagnosisHistory, RecommendationHistory, Patient, Doctor, DoctorUpdate #MODELS
 from sqlmodel import Session, select, delete
 from uuid import UUID, uuid4
 from pydantic import BaseModel
@@ -600,3 +600,24 @@ def get_account(doctor: Doctor = Depends(get_current_doctor)):
         "username": doctor.username,
         "email": doctor.email,
     }
+
+@app.put("/account/update")
+def update_account(
+    data: DoctorUpdate,
+    doctor: Doctor = Depends(get_current_doctor)
+):
+    with Session(engine) as session:
+        db_doctor = session.get(Doctor, doctor.id)
+        if not db_doctor:
+            raise HTTPException(status_code=404, detail="Doctor not found")
+
+        if data.username:
+            db_doctor.username = data.username
+        if data.email:
+            db_doctor.email = data.email
+        if data.password:
+            db_doctor.hashed_password = Doctor.hash_password(data.password)             
+        
+        session.commit()
+        session.refresh(db_doctor)
+        return {"message": "Account updated successfully."}
