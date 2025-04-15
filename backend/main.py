@@ -152,6 +152,7 @@ Return only the summary. Do not include introductions or explanations.
                 summary=summary.strip(),
                 keywords=found_keywords,
                 notes=notes,
+                doctor_id=doctor.id
             )
             print("📥 Saving summary to DB:", file.filename, found_keywords)
             session.add(summary_record)
@@ -500,6 +501,7 @@ def get_recommendations(summary_id: str, doctor: Doctor = Depends(get_current_do
 @app.post("/patients", response_model=Patient)
 def create_patient(patient: Patient, doctor: Doctor = Depends(get_current_doctor)):
     with Session(engine) as session:
+        patient.doctor_id = doctor.id
         session.add(patient)
         session.commit()
         session.refresh(patient)

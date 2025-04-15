@@ -11,6 +11,7 @@ from pydantic import BaseModel, EmailStr, constr
 class Summary(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     patient_id: Optional[UUID] = Field(default=None, sa_column=Column(ForeignKey("patient.id", ondelete="CASCADE")))
+    doctor_id: UUID = Field(foreign_key="doctor.id", nullable=False)
     file_name: Optional[str] = None
     raw_text: Optional[str] = None
     summary: Optional[str] = None
@@ -20,6 +21,7 @@ class Summary(SQLModel, table=True):
 
 class Patient(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
+    doctor_id: UUID = Field(foreign_key="doctor.id", nullable=False)
     name: str
     age: Optional[int] = None
     gender: Optional[str] = None
